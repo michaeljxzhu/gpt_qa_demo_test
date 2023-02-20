@@ -5,8 +5,11 @@ import os
 from langchain.agents import Tool
 from langchain.chains.conversation.memory import ConversationBufferMemory, ConversationSummaryBufferMemory
 from langchain import OpenAI
-from langchain.agents import initialize_agent
 from llama_index import GPTSimpleVectorIndex
+from langchain.agents.conversational.base import ConversationalAgent
+from langchain.agents.agent import AgentExecutor
+
+from health_conversational_agent import HealthConversationalAgent
 
 # note: set Logging to DEBUG for more detailed outputs
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -23,10 +26,10 @@ print(f"Loaded GPTSimpleVectorIndex")
 # define langchain tool calling into gpt-index index
 tools = [
     Tool(
-        name = "GPT Index",
+        name = "Medical Information",
         func=lambda q: str(index.query(q)),
-        description="useful for when you want to answer questions about the author. The input to this tool should be a complete english sentence.",
-        return_direct=True
+        description="This should be used whenever the human asks a question about cancer, medicine, and health",
+        return_direct=True # explore setting this to false
     ),
 ]
 
@@ -37,10 +40,21 @@ print("Initialized Memory...")
 llm=OpenAI(temperature=0)
 print("Initialized LLM...")
 
-agent_chain = initialize_agent(tools, llm, agent="conversational-react-description", memory=memory)
+agent_obj = HealthConversationalAgent.from_llm_and_tools(
+    llm,
+    tools,
+    memory=memory,
+    verbose=True
+)
+agent = AgentExecutor.from_agent_and_tools(
+    agent=agent_obj,
+    tools=tools,
+    memory=memory,
+    verbose=True
+)	
 print("Initialized Agent...")
 
 while True:
 	print("Your input:")
 	input_text = input()
-	print(agent_chain.run(input=input_text))
+	agent(input_text)
